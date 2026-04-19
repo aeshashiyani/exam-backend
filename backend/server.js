@@ -32,13 +32,18 @@ app.use((req, res, next) => {
    MongoDB CONNECTION
 ========================= */
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/exam";
+console.log("📡 Attempting to connect to:", MONGODB_URI.includes("@") ? "Cloud Database (Atlas)" : "Local Database (127.0.0.1)");
+
 mongoose.connect(MONGODB_URI)
   .then(() => {
-    console.log("MongoDB Connected");
+    console.log("✅ MongoDB Connected Successfully");
     seedUsers();
     seedQuestions();
   })
-  .catch(err => console.log("DB Error:", err));
+  .catch(err => {
+    console.log("❌ MongoDB Connection Error:");
+    console.log(err.message);
+  });
 
 /* =========================
    📦 MODELS
