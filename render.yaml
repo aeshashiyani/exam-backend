@@ -1,0 +1,28 @@
+services:
+  # ── Backend (Node/Express) ──────────────────────────────────────────
+  - type: web
+    name: exam-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false          # set manually in Render dashboard
+      - key: JWT_SECRET
+        sync: false          # set manually in Render dashboard
+      - key: PORT
+        value: 5000
+
+  # ── Frontend (React static site) ────────────────────────────────────
+  - type: web
+    name: exam-frontend
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npx serve -s build -l 3000
+    envVars:
+      - key: REACT_APP_API_URL
+        sync: false          # set to your backend Render URL
