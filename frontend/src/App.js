@@ -313,6 +313,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Exam from "./pages/Exam";
 import Result from "./pages/Result";
+import Profile from "./pages/Profile";
 
 function App() {
   return (
@@ -324,6 +325,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/exam" element={<Exam />} />
         <Route path="/result" element={<Result />} />
+        <Route path="/profile" element={<Profile />} />
       </Routes>
     </BrowserRouter>
   );
@@ -331,4 +333,3 @@ function App() {
 
 export default App;
 
- 

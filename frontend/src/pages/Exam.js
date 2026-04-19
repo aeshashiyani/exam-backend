@@ -105,7 +105,7 @@ function Exam() {
     return txt.value;
   };
 
-  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  const API_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:5000";
 
   // 🔥 Fetch Questions
   useEffect(() => {
@@ -120,18 +120,17 @@ function Exam() {
     axios.post(`${API_URL}/generate-questions`, {
       subject
     })
-    .then(res => {
-      console.log("✅ Questions loaded:", res.data);
-      setQuestions(res.data);
-      setLoading(false);
-    })
-    .catch(err => {
-      console.error("❌ Error loading questions:", err);
-      console.error("Error response:", err.response?.data);
-      alert("Failed to load questions: " + (err.response?.data?.error || err.message));
-      setLoading(false);
-    });
-  }, []);
+      .then(res => {
+        console.log("✅ Questions loaded:", res.data);
+        setQuestions(res.data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("❌ Error loading questions:", err);
+        alert("Failed to load questions. Is the backend running?");
+        setLoading(false);
+      });
+  }, [subject, API_URL]);
 
   // ⏱ Timer
   useEffect(() => {
@@ -166,11 +165,18 @@ function Exam() {
       if (answers[i] === q.answer) score++;
     });
 
-    // 🔥 Save result (optional backend)
+    // 🔥 Save result to Atlas
+    console.log("Saving result to cloud...");
     axios.post(`${API_URL}/result`, {
       score,
-      total: questions.length
-    }).catch(() => {});
+      total: questions.length,
+      subject: localStorage.getItem("selectedSubject") || "General",
+      username: (localStorage.getItem("username") && localStorage.getItem("username") !== "undefined") 
+                ? localStorage.getItem("username") 
+                : "Student"
+    })
+      .then(() => console.log("✅ Result saved!"))
+      .catch((err) => console.error("❌ Save failed:", err.message));
 
     nav("/result", {
       state: { score, total: questions.length }

@@ -24,6 +24,7 @@ function Dashboard() {
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
+    localStorage.removeItem("username");
     nav("/login");
   };
 
@@ -59,7 +60,7 @@ function Dashboard() {
         </div>
         <div className="info-item">
           <span>Selected:</span>
-          <strong>{subjects.find(s => s.id === subject)?.name.split(" ")[1]}</strong>
+          <strong>{subjects.find(s => s.id === subject)?.name}</strong>
         </div>
       </div>
 

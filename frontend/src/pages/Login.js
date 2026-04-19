@@ -33,6 +33,7 @@ function Login() {
       if (res.ok) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("role", data.role);
+        localStorage.setItem("username", data.username);
         nav("/dashboard");
       } else {
         setMessage(data.error || "Login failed");
