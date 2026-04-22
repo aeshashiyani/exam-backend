@@ -1,5 +1,6 @@
 require("dotenv").config();
 const dns = require('dns');
+const path = require('path');
 
 // Fix for querySrv ECONNREFUSED on some networks
 dns.setServers(['8.8.8.8', '8.8.4.4']);
@@ -35,16 +36,16 @@ app.use((req, res, next) => {
 /* =========================
    MongoDB CONNECTION (Atlas Only)
 ========================= */
-const MONGODB_URI = process.env.MONGODB_URI;
+const MONGO_URI = process.env.MONGO_URI;
 
-if (!MONGODB_URI) {
-  console.error("❌ ERROR: MONGODB_URI is missing in .env file!");
+if (!MONGO_URI) {
+  console.error("❌ ERROR: MONGO_URI is missing in .env file!");
   process.exit(1); // Stop the server if no database is found
 }
 
 console.log("📡 Connecting to MongoDB Atlas Cluster...");
 
-mongoose.connect(MONGODB_URI)
+mongoose.connect(MONGO_URI)
   .then(() => {
     const dbName = mongoose.connection.name;
     console.log(`✅ SUCCESS: Connected to Atlas Database: "${dbName}"`);
@@ -454,6 +455,26 @@ app.get("/results", async (req, res) => {
   }
 });
 
+
+/* =========================
+   🌐 SERVE REACT FRONTEND (Elastic Beanstalk)
+   The built frontend is placed in: backend/public/
+   Run: npm run build in frontend/ then copy the build/ folder
+   into backend/ and rename it to 'public'
+========================= */
+const frontendBuildPath = path.join(__dirname, 'public');
+app.use(express.static(frontendBuildPath));
+
+// Catch-all: send React's index.html for any non-API route
+// This enables client-side routing (React Router)
+app.get('*path', (req, res) => {
+  const indexFile = path.join(frontendBuildPath, 'index.html');
+  res.sendFile(indexFile, (err) => {
+    if (err) {
+      res.status(404).json({ error: 'Frontend not found. Build the React app first.' });
+    }
+  });
+});
 
 /* =========================
    🚀 START SERVER
