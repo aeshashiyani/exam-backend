@@ -18,28 +18,24 @@ const MONGO_URI = process.env.MONGO_URI;
 mongoose.connect(MONGO_URI)
   .then(() => {
     console.log("✅ Connected to MongoDB Atlas");
-    seedUsers(); 
-    seedQuestions();
+    seedQuestions(); // Ensure database has questions
   })
   .catch(err => console.log("❌ DB Connection Error:", err));
 
 /* =========================
    🏗️ DATA MODELS
 ========================= */
-// Master User for Authentication
 const User = mongoose.model("User", new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, required: true }
 }, { collection: "users" }));
 
-// Specific Collection for Students
 const Student = mongoose.model("Student", new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   createdAt: { type: Date, default: Date.now }
 }, { collection: "students" }));
 
-// Specific Collection for Faculty
 const Faculty = mongoose.model("Faculty", new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   createdAt: { type: Date, default: Date.now }
@@ -67,111 +63,71 @@ const Result = mongoose.model("Result", new mongoose.Schema({
 app.post("/register", async (req, res) => {
   try {
     const { username, password, role } = req.body;
-    if (!username || !password || !role) return res.status(400).json({ error: "All fields required" });
-
     const hashedPassword = await bcrypt.hash(password, 10);
-    
-    // Save to Master Auth Collection
     const newUser = new User({ username, password: hashedPassword, role });
     await newUser.save();
-
-    // Save to Role-Specific Collection for Atlas Organization
-    if (role === "faculty") {
-      const newFaculty = new Faculty({ username });
-      await newFaculty.save();
-    } else {
-      const newStudent = new Student({ username });
-      await newStudent.save();
-    }
-
-    res.status(201).json({ message: "User registered successfully" });
-  } catch (err) {
-    if (err.code === 11000) return res.status(400).json({ error: "Username already exists" });
-    res.status(500).json({ error: "Registration failed" });
-  }
+    if (role === "faculty") await new Faculty({ username }).save();
+    else await new Student({ username }).save();
+    res.status(201).json({ message: "User registered" });
+  } catch (err) { res.status(400).json({ error: "Registration failed" }); }
 });
 
 app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
     const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
-
+    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ error: "Invalid login" });
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1d" });
     res.json({ token, role: user.role, username: user.username });
-  } catch (err) {
-    res.status(500).json({ error: "Login failed" });
-  }
+  } catch (err) { res.status(500).json({ error: "Login failed" }); }
 });
 
 /* =========================
-   📝 EXAM & STUDENT ROUTES
+   📝 API ROUTES
 ========================= */
-app.get("/students", async (req, res) => {
-  const data = await Student.find();
-  res.json(data);
-});
-
-app.get("/questions", async (req, res) => {
-  const data = await Question.find();
-  res.json(data);
-});
-
-app.get("/results", async (req, res) => {
-  const data = await Result.find();
-  res.json(data);
-});
-
+app.get("/students", async (req, res) => res.json(await Student.find()));
+app.get("/questions", async (req, res) => res.json(await Question.find()));
+app.get("/results", async (req, res) => res.json(await Result.find()));
 app.post("/result", async (req, res) => {
-  try {
-    const newResult = new Result(req.body);
-    await newResult.save();
-    res.status(201).json({ message: "Result saved" });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to save result" });
-  }
+  await new Result(req.body).save();
+  res.status(201).json({ message: "Saved" });
 });
 
 /* =========================
-   🤖 AI QUESTION GENERATOR
+   🤖 AI GENERATION
 ========================= */
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 app.post("/generate-questions", async (req, res) => {
   const { subject } = req.body;
   try {
-    const prompt = `Generate 10 multiple-choice questions on ${subject}. Format as JSON: [{"question": "...", "options": ["...", "..."], "answer": "..."}]`;
+    const prompt = `Generate 10 multiple-choice questions on ${subject}. Format as JSON array: [{"question": "...", "options": ["...", "..."], "answer": "..."}]`;
     const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [{ role: "user", content: prompt }]
     });
-
-    const questions = JSON.parse(response.choices[0].message.content);
-    res.json(questions);
-  } catch (err) {
-    res.status(500).json({ error: "AI failed to generate questions" });
-  }
+    res.json(JSON.parse(response.choices[0].message.content));
+  } catch (err) { res.status(500).json({ error: "AI failed" }); }
 });
 
 /* =========================
-   🌐 STATIC FILES & SERVER
+   🌐 SERVER & SEEDING
 ========================= */
 const frontendPath = path.join(__dirname, "public");
 app.use(express.static(frontendPath));
-
-app.get("*path", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
-});
-
-const seedUsers = async () => {
-  // Optional: Add seeding logic here if needed
-};
+app.get("*", (req, res) => res.sendFile(path.join(frontendPath, "index.html")));
 
 const seedQuestions = async () => {
-  // Optional: Add seeding logic here if needed
+  const count = await Question.countDocuments();
+  if (count > 0) return;
+  const samples = [
+    { question: "Language for iOS?", options: ["Swift", "Java", "C#", "Dart"], answer: "Swift", subject: "ios" },
+    { question: "Language for Flutter?", options: ["Dart", "Kotlin", "Swift", "Go"], answer: "Dart", subject: "flutter" },
+    { question: "AWS Provider?", options: ["Amazon", "Google", "Microsoft", "IBM"], answer: "Amazon", subject: "cloud computing" },
+    { question: "What is NLP?", options: ["Natural Language Processing", "Neural Layer", "Network Link", "None"], answer: "Natural Language Processing", subject: "nlp" },
+    { question: "What is ML?", options: ["Machine Learning", "Mobile Layer", "Master Link", "None"], answer: "Machine Learning", subject: "machine learning" }
+  ];
+  await Question.insertMany(samples);
+  console.log("✅ Seeded initial questions");
 };
 
 const PORT = process.env.PORT || 5000;
