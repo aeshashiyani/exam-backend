@@ -14,28 +14,39 @@ function Dashboard() {
   const API_URL = process.env.REACT_APP_API_URL || "";
 
   useEffect(() => {
+    console.log("🛠️ Dashboard initialized for role:", role);
     if (role === "faculty") {
       fetchFacultyData();
     } else {
+      console.log("✅ Student role detected, stopping loader.");
       setLoading(false);
     }
   }, [role]);
 
   const fetchFacultyData = async () => {
+    console.log("📡 Fetching faculty data from:", API_URL || "Relative Path");
     try {
-      const [resResults, resStudents, resQuestions] = await Promise.all([
-        axios.get(`${API_URL}/results`),
-        axios.get(`${API_URL}/students`),
-        axios.get(`${API_URL}/questions`)
-      ]);
+      console.log("🔄 Calling /results...");
+      const resResults = await axios.get(`${API_URL}/results`);
+      console.log("✅ Results fetched:", resResults.data.length);
+
+      console.log("🔄 Calling /students...");
+      const resStudents = await axios.get(`${API_URL}/students`);
+      console.log("✅ Students fetched:", resStudents.data.length);
+
+      console.log("🔄 Calling /questions...");
+      const resQuestions = await axios.get(`${API_URL}/questions`);
+      console.log("✅ Questions fetched:", resQuestions.data.length);
+
       setFacultyData({
         results: resResults.data,
         students: resStudents.data.length,
         questions: resQuestions.data.length
       });
     } catch (err) {
-      console.error("Failed to fetch faculty data", err);
+      console.error("❌ ERROR: Failed to fetch faculty data", err);
     } finally {
+      console.log("🏁 Loading finished.");
       setLoading(false);
     }
   };
@@ -53,7 +64,12 @@ function Dashboard() {
     nav("/exam", { state: { subject } });
   };
 
-  if (loading) return <div className="loading">Loading Dashboard...</div>;
+  if (loading) return (
+    <div className="loading-screen">
+      <div className="loader"></div>
+      <p>Loading Dashboard for {role}...</p>
+    </div>
+  );
 
   return (
     <div className="dashboard-container">
