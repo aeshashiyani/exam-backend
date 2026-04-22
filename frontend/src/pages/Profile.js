@@ -8,7 +8,7 @@ function Profile() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const nav = useNavigate();
-  const API_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:5000";
+  const API_URL = process.env.REACT_APP_API_URL || "";
 
   useEffect(() => {
     const fetchResults = async () => {
