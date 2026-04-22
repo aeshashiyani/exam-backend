@@ -248,9 +248,9 @@ const seedQuestions = async () => {
 /* =========================
    🟢 BASIC ROUTE
 ========================= */
-app.get("/", (req, res) => {
-  res.send("🚀 Backend Running");
-});
+// app.get("/", (req, res) => {
+//   res.send("🚀 Backend Running");
+// });
 
 app.get("/test", (req, res) => {
   res.json({ message: "✅ Backend is working" });
