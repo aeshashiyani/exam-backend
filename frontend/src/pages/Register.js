@@ -5,7 +5,7 @@ import "./Auth.css";
 function Register() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const role = "student"; // Students only — faculty added by admin
+  const [role, setRole] = useState("student");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const nav = useNavigate();
@@ -71,7 +71,17 @@ function Register() {
             />
           </div>
 
-
+          <div className="form-group">
+            <label>Role</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="role-select"
+            >
+              <option value="student">Student</option>
+              <option value="faculty">Faculty</option>
+            </select>
+          </div>
 
           {message && (
             <div className={`message ${message.includes("✅") ? "success" : "error"}`}>
