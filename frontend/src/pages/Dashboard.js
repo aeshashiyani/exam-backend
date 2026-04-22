@@ -14,38 +14,49 @@ function Dashboard() {
   const API_URL = process.env.REACT_APP_API_URL || "";
 
   useEffect(() => {
+    console.log("🛠️ Dashboard initialized for role:", role);
     if (role === "faculty") {
       fetchFacultyData();
     } else {
+      console.log("✅ Student role detected, stopping loader.");
       setLoading(false);
     }
   }, [role]);
 
   const fetchFacultyData = async () => {
+    console.log("📡 Fetching faculty data from:", API_URL || "Relative Path");
     try {
-      const [resResults, resStudents, resQuestions] = await Promise.all([
-        axios.get(`${API_URL}/results`),
-        axios.get(`${API_URL}/students`),
-        axios.get(`${API_URL}/questions`)
-      ]);
+      console.log("🔄 Calling /results...");
+      const resResults = await axios.get(`${API_URL}/results`);
+      console.log("✅ Results fetched:", resResults.data.length);
+
+      console.log("🔄 Calling /students...");
+      const resStudents = await axios.get(`${API_URL}/students`);
+      console.log("✅ Students fetched:", resStudents.data.length);
+
+      console.log("🔄 Calling /questions...");
+      const resQuestions = await axios.get(`${API_URL}/questions`);
+      console.log("✅ Questions fetched:", resQuestions.data.length);
+
       setFacultyData({
         results: resResults.data,
         students: resStudents.data.length,
         questions: resQuestions.data.length
       });
     } catch (err) {
-      console.error("Failed to fetch faculty data", err);
+      console.error("❌ ERROR: Failed to fetch faculty data", err);
     } finally {
+      console.log("🏁 Loading finished.");
       setLoading(false);
     }
   };
 
   const subjects = [
-    { id: "ios", name: "iOS Development", description: "Swift & Xcode Mastery", icon: "/assets/ios.png" },
-    { id: "flutter", name: "Flutter", description: "Modern Cross-Platform SDK", icon: "/assets/flutter.png" },
-    { id: "cloud computing", name: "Cloud Infrastructure", description: "AWS & Distributed Systems", icon: "/assets/cloud.png" },
-    { id: "nlp", name: "Language AI", description: "Natural Language Processing", icon: "/assets/nlp.png" },
-    { id: "machine learning", name: "Machine Learning", description: "Predictive AI & Algorithms", icon: "/assets/ml.png" }
+    { id: "ios", name: "iOS", description: "Swift & iOS Development" },
+    { id: "flutter", name: "Flutter", description: "Cross-platform development" },
+    { id: "cloud computing", name: "Cloud Computing", description: "AWS, Azure, GCP" },
+    { id: "nlp", name: "Natural Language Processing", description: "Text & Language" },
+    { id: "machine learning", name: "Machine Learning", description: "AI & Algorithms" }
   ];
 
   const startExam = () => {
@@ -54,115 +65,111 @@ function Dashboard() {
   };
 
   if (loading) return (
-    <div className="classic-loader">
-      <div className="pulse-ring"></div>
-      <p>Synchronizing with Cloud...</p>
+    <div className="loading-screen">
+      <div className="loader"></div>
+      <p>Loading Dashboard for {role}...</p>
     </div>
   );
 
   return (
-    <div className="dashboard-root">
+    <div className="dashboard-container">
       <Navbar />
-      
-      <main className="dashboard-content">
-        {role === "faculty" ? (
-          <div className="faculty-portal animate-in">
-            <header className="portal-header">
-              <span className="badge">Faculty Command Center</span>
-              <h1>Executive Overview</h1>
-              <p>Performance analytics and system-wide monitoring</p>
-            </header>
 
-            <div className="metrics-grid">
-              <div className="metric-card">
-                <div className="metric-label">Registered Students</div>
-                <div className="metric-value">{facultyData.students}</div>
-                <div className="metric-trend up">Live Connection</div>
-              </div>
-              <div className="metric-card">
-                <div className="metric-label">Total Question Bank</div>
-                <div className="metric-value">{facultyData.questions}</div>
-                <div className="metric-trend">Curated Set</div>
-              </div>
-              <div className="metric-card highlight">
-                <div className="metric-label">Exams Completed</div>
-                <div className="metric-value">{facultyData.results.length}</div>
-                <div className="metric-trend up">Active Sessions</div>
-              </div>
+      {role === "faculty" ? (
+        <div className="faculty-view">
+          <div className="dashboard-header">
+            <h1>Faculty Command Center</h1>
+            <p>Monitor student performance and manage exam content</p>
+          </div>
+
+          <div className="stats-grid">
+            <div className="stat-card">
+              <h3>Total Students</h3>
+              <div className="stat-value">{facultyData.students}</div>
             </div>
+            <div className="stat-card">
+              <h3>Question Bank</h3>
+              <div className="stat-value">{facultyData.questions}</div>
+            </div>
+            <div className="stat-card">
+              <h3>Exams Completed</h3>
+              <div className="stat-value">{facultyData.results.length}</div>
+            </div>
+          </div>
 
-            <section className="data-table-section">
-              <div className="section-header">
-                <h2>Live Student Records</h2>
-              </div>
-              <div className="classic-table-wrapper">
-                <table className="classic-table">
-                  <thead>
-                    <tr>
-                      <th>STUDENT IDENTITY</th>
-                      <th>SUBJECT SPECIALIZATION</th>
-                      <th>FINAL SCORE</th>
-                      <th>TIMESTAMP</th>
+          <div className="results-section">
+            <h2>Student Results Overview</h2>
+            <div className="results-table-container">
+              <table className="results-table">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Subject</th>
+                    <th>Score</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {facultyData.results.map((res, i) => (
+                    <tr key={i}>
+                      <td>{res.username}</td>
+                      <td>{res.subject.toUpperCase()}</td>
+                      <td>{res.score}/{res.total}</td>
+                      <td>{new Date(res.createdAt).toLocaleDateString()}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {facultyData.results.map((res, i) => (
-                      <tr key={i}>
-                        <td className="user-cell">{res.username}</td>
-                        <td className="subject-cell"><span>{res.subject.toUpperCase()}</span></td>
-                        <td className="score-cell"><strong>{res.score}</strong>/{res.total}</td>
-                        <td className="date-cell">{new Date(res.createdAt).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
-                    {facultyData.results.length === 0 && (
-                      <tr>
-                        <td colSpan="4" className="empty-state">No academic records found in the current cluster.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </div>
-        ) : (
-          <div className="student-portal animate-in">
-            <header className="portal-header">
-              <span className="badge">Student Assessment Portal</span>
-              <h1>Choose Your Domain</h1>
-              <p>Select a specialized track to begin your certification assessment</p>
-            </header>
-
-            <div className="classic-grid">
-              {subjects.map((subj) => (
-                <div
-                  key={subj.id}
-                  className={`classic-card ${subject === subj.id ? "selected" : ""}`}
-                  onClick={() => setSubject(subj.id)}
-                >
-                  <div className="card-image-wrapper">
-                    <img src={subj.icon} alt={subj.name} />
-                  </div>
-                  <div className="card-details">
-                    <h3>{subj.name}</h3>
-                    <p>{subj.description}</p>
-                  </div>
-                </div>
-              ))}
+                  ))}
+                  {facultyData.results.length === 0 && (
+                    <tr>
+                      <td colSpan="4">No results recorded yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-
-            <footer className="assessment-footer">
-              <div className="assessment-meta">
-                <div className="meta-pill">20 Questions</div>
-                <div className="meta-pill">10 Minutes</div>
-                <div className="meta-pill active">{subjects.find(s => s.id === subject)?.name}</div>
-              </div>
-              <button className="btn-classic-start" onClick={startExam}>
-                Initialize Assessment
-              </button>
-            </footer>
           </div>
-        )}
-      </main>
+        </div>
+      ) : (
+        <div className="student-view">
+          <div className="dashboard-header">
+            <h1>Select Your Subject</h1>
+            <p>Choose a subject to start your exam - 20 questions, 10 minutes</p>
+          </div>
+
+          <div className="subjects-grid">
+            {subjects.map((subj) => (
+              <div
+                key={subj.id}
+                className={`subject-card ${subject === subj.id ? "active" : ""}`}
+                onClick={() => setSubject(subj.id)}
+              >
+                <div className="subject-title">{subj.name}</div>
+                <div className="subject-description">{subj.description}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="exam-info">
+            <div className="info-item">
+              <span>Questions:</span>
+              <strong>20</strong>
+            </div>
+            <div className="info-item">
+              <span>Time Limit:</span>
+              <strong>10 Minutes</strong>
+            </div>
+            <div className="info-item">
+              <span>Selected:</span>
+              <strong>{subjects.find(s => s.id === subject)?.name}</strong>
+            </div>
+          </div>
+
+          <div className="dashboard-actions">
+            <button className="btn-start" onClick={startExam}>
+              Start Exam
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
