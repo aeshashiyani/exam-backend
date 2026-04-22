@@ -15,12 +15,17 @@ app.use(cors());
    📦 MONGODB CONNECTION
 ========================= */
 const MONGO_URI = process.env.MONGO_URI;
-mongoose.connect(MONGO_URI)
-  .then(() => {
-    console.log("✅ Connected to MongoDB Atlas");
-    seedQuestions(); // Ensure database has questions
-  })
-  .catch(err => console.log("❌ DB Connection Error:", err));
+
+if (!MONGO_URI) {
+  console.error("❌ CRITICAL ERROR: MONGO_URI is not defined in environment variables!");
+} else {
+  mongoose.connect(MONGO_URI)
+    .then(() => {
+      console.log("✅ Connected to MongoDB Atlas");
+      seedQuestions();
+    })
+    .catch(err => console.error("❌ MongoDB Connection Error:", err));
+}
 
 /* =========================
    🏗️ DATA MODELS
@@ -77,7 +82,7 @@ app.post("/login", async (req, res) => {
     const { username, password } = req.body;
     const user = await User.findOne({ username });
     if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ error: "Invalid login" });
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1d" });
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || "fallback_secret", { expiresIn: "1d" });
     res.json({ token, role: user.role, username: user.username });
   } catch (err) { res.status(500).json({ error: "Login failed" }); }
 });
@@ -89,16 +94,20 @@ app.get("/students", async (req, res) => res.json(await Student.find()));
 app.get("/questions", async (req, res) => res.json(await Question.find()));
 app.get("/results", async (req, res) => res.json(await Result.find()));
 app.post("/result", async (req, res) => {
-  await new Result(req.body).save();
-  res.status(201).json({ message: "Saved" });
+  try {
+    await new Result(req.body).save();
+    res.status(201).json({ message: "Saved" });
+  } catch (e) { res.status(500).json({ error: "Save failed" }); }
 });
 
 /* =========================
    🤖 AI GENERATION
 ========================= */
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+
 app.post("/generate-questions", async (req, res) => {
   const { subject } = req.body;
+  if (!openai) return res.status(503).json({ error: "AI service not configured" });
   try {
     const prompt = `Generate 10 multiple-choice questions on ${subject}. Format as JSON array: [{"question": "...", "options": ["...", "..."], "answer": "..."}]`;
     const response = await openai.chat.completions.create({
@@ -117,18 +126,26 @@ app.use(express.static(frontendPath));
 app.get("*", (req, res) => res.sendFile(path.join(frontendPath, "index.html")));
 
 const seedQuestions = async () => {
-  const count = await Question.countDocuments();
-  if (count > 0) return;
-  const samples = [
-    { question: "Language for iOS?", options: ["Swift", "Java", "C#", "Dart"], answer: "Swift", subject: "ios" },
-    { question: "Language for Flutter?", options: ["Dart", "Kotlin", "Swift", "Go"], answer: "Dart", subject: "flutter" },
-    { question: "AWS Provider?", options: ["Amazon", "Google", "Microsoft", "IBM"], answer: "Amazon", subject: "cloud computing" },
-    { question: "What is NLP?", options: ["Natural Language Processing", "Neural Layer", "Network Link", "None"], answer: "Natural Language Processing", subject: "nlp" },
-    { question: "What is ML?", options: ["Machine Learning", "Mobile Layer", "Master Link", "None"], answer: "Machine Learning", subject: "machine learning" }
-  ];
-  await Question.insertMany(samples);
-  console.log("✅ Seeded initial questions");
+  try {
+    const count = await Question.countDocuments();
+    if (count > 0) return;
+    const samples = [
+      { question: "Language for iOS?", options: ["Swift", "Java", "C#", "Dart"], answer: "Swift", subject: "ios" },
+      { question: "Language for Flutter?", options: ["Dart", "Kotlin", "Swift", "Go"], answer: "Dart", subject: "flutter" },
+      { question: "AWS Provider?", options: ["Amazon", "Google", "Microsoft", "IBM"], answer: "Amazon", subject: "cloud computing" },
+      { question: "What is NLP?", options: ["Natural Language Processing", "Neural Layer", "Network Link", "None"], answer: "Natural Language Processing", subject: "nlp" },
+      { question: "What is ML?", options: ["Machine Learning", "Mobile Layer", "Master Link", "None"], answer: "Machine Learning", subject: "machine learning" }
+    ];
+    await Question.insertMany(samples);
+    console.log("✅ Seeded initial questions");
+  } catch (e) { console.error("❌ Seeding Error:", e); }
 };
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🔥 Server running on port ${PORT}`));
+const PORT = process.env.PORT || 8080; // AWS EB prefers 8080
+app.listen(PORT, () => {
+  console.log(`🔥 SERVER BOOT SUCCESSFUL! Listening on port ${PORT}`);
+  console.log("🛠️ Environment Check:");
+  console.log(` - MONGO_URI: ${process.env.MONGO_URI ? "DETECTED" : "MISSING"}`);
+  console.log(` - JWT_SECRET: ${process.env.JWT_SECRET ? "DETECTED" : "MISSING"}`);
+  console.log(` - OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? "DETECTED" : "MISSING"}`);
+});
