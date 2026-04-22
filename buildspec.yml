@@ -1,0 +1,24 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo "Installing dependencies for both Frontend and Backend..."
+      - cd frontend && npm install
+      - cd ../backend && npm install
+  build:
+    commands:
+      - echo "Building the React Frontend..."
+      - cd ../frontend && npm run build
+      - echo "Merging Frontend build into Backend public folder..."
+      - mkdir -p ../backend/public
+      - cp -R build/* ../backend/public/
+  post_build:
+    commands:
+      - echo "Build completed successfully!"
+artifacts:
+  files:
+    - '**/*'
+  base-directory: 'backend'
