@@ -7,14 +7,15 @@ import "./Dashboard.css";
 function Dashboard() {
   const nav = useNavigate();
   const role = localStorage.getItem("role") || "student";
-  const [view, setView] = useState("overview"); // 'overview' or 'students'
+  const [view, setView] = useState("overview"); 
   const [facultyData, setFacultyData] = useState({ results: [], students: [], questions: 0 });
   const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedSubj, setSelectedSubj] = useState(null);
 
   const API_URL = process.env.REACT_APP_API_URL || "";
 
   useEffect(() => {
-    console.log("🛠️ Dashboard initialized for role:", role);
     if (role === "faculty") {
       fetchFacultyData();
     } else {
@@ -35,7 +36,7 @@ function Dashboard() {
         questions: resQuestions.data.length
       });
     } catch (err) {
-      console.error("❌ ERROR: Failed to fetch faculty data", err);
+      console.error("Failed to fetch faculty data", err);
     } finally {
       setLoading(false);
     }
@@ -49,10 +50,20 @@ function Dashboard() {
     { id: "machine learning", name: "Machine Learning", description: "AI & Algorithms" }
   ];
 
+  const handleSubjectClick = (id) => {
+    setSelectedSubj(id);
+    setShowModal(true);
+  };
+
+  const confirmStartExam = () => {
+    localStorage.setItem("selectedSubject", selectedSubj);
+    nav("/exam", { state: { subject: selectedSubj } });
+  };
+
   if (loading) return (
     <div className="loading-screen">
       <div className="loader"></div>
-      <p>Syncing Dashboard...</p>
+      <p>Syncing Command Center...</p>
     </div>
   );
 
@@ -82,20 +93,9 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Senior Dev Tabs */}
           <div className="view-switcher">
-            <button 
-              className={`view-btn ${view === "overview" ? "active" : ""}`}
-              onClick={() => setView("overview")}
-            >
-              Performance Overview
-            </button>
-            <button 
-              className={`view-btn ${view === "students" ? "active" : ""}`}
-              onClick={() => setView("students")}
-            >
-              Student Registry
-            </button>
+            <button className={`view-btn ${view === "overview" ? "active" : ""}`} onClick={() => setView("overview")}>Performance Overview</button>
+            <button className={`view-btn ${view === "students" ? "active" : ""}`} onClick={() => setView("students")}>Student Registry</button>
           </div>
 
           <div className="content-area">
@@ -105,12 +105,7 @@ function Dashboard() {
                 <div className="results-table-container">
                   <table className="results-table">
                     <thead>
-                      <tr>
-                        <th>Student Name</th>
-                        <th>Subject</th>
-                        <th>Score</th>
-                        <th>Date Completed</th>
-                      </tr>
+                      <tr><th>Student Name</th><th>Subject</th><th>Score</th><th>Date Completed</th></tr>
                     </thead>
                     <tbody>
                       {facultyData.results.map((res, i) => (
@@ -121,9 +116,6 @@ function Dashboard() {
                           <td>{new Date(res.createdAt).toLocaleDateString()}</td>
                         </tr>
                       ))}
-                      {facultyData.results.length === 0 && (
-                        <tr><td colSpan="4" className="empty-msg">No results recorded yet.</td></tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
@@ -133,26 +125,15 @@ function Dashboard() {
                 <h2>Registered Student List</h2>
                 <div className="results-table-container">
                   <table className="results-table">
-                    <thead>
-                      <tr>
-                        <th>Username</th>
-                        <th>Account Created</th>
-                        <th>Total Exams Taken</th>
-                      </tr>
-                    </thead>
+                    <thead><tr><th>Username</th><th>Account Created</th><th>Status</th></tr></thead>
                     <tbody>
                       {facultyData.students.map((stu, i) => (
                         <tr key={i}>
                           <td><strong>{stu.username}</strong></td>
                           <td>{new Date(stu.createdAt).toLocaleDateString()}</td>
-                          <td>
-                            {facultyData.results.filter(r => r.username === stu.username).length} Exams
-                          </td>
+                          <td><span className="badge">Active</span></td>
                         </tr>
                       ))}
-                      {facultyData.students.length === 0 && (
-                        <tr><td colSpan="3" className="empty-msg">No students registered yet.</td></tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
@@ -171,11 +152,8 @@ function Dashboard() {
             {subjects.map((subj) => (
               <div
                 key={subj.id}
-                className={`subject-card ${localStorage.getItem("selectedSubject") === subj.id ? "active" : ""}`}
-                onClick={() => {
-                  localStorage.setItem("selectedSubject", subj.id);
-                  nav("/exam", { state: { subject: subj.id } });
-                }}
+                className="subject-card"
+                onClick={() => handleSubjectClick(subj.id)}
               >
                 <div className="subject-title">{subj.name}</div>
                 <div className="subject-description">{subj.description}</div>
@@ -185,6 +163,20 @@ function Dashboard() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Senior Dev Modal */}
+      {showModal && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <h2>Are you ready?</h2>
+            <p>You are about to start the <strong>{subjects.find(s => s.id === selectedSubj)?.name}</strong> exam. Once you begin, you will have 10 minutes to complete 20 questions.</p>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setShowModal(false)}>Wait, I need more time</button>
+              <button className="btn-confirm" onClick={confirmStartExam}>Yes, I'm ready!</button>
+            </div>
           </div>
         </div>
       )}
