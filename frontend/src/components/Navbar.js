@@ -17,6 +17,7 @@ function Navbar() {
   };
 
   const isActive = (path) => location.pathname === path;
+  const role = localStorage.getItem("role") || "student";
 
   return (
     <nav className="navbar">
@@ -32,12 +33,14 @@ function Navbar() {
           Dashboard
         </button>
 
-        <button
-          className={`nav-btn ${isActive("/profile") ? "active" : ""}`}
-          onClick={() => nav("/profile")}
-        >
-          My Result
-        </button>
+        {role === "student" && (
+          <button
+            className={`nav-btn ${isActive("/profile") ? "active" : ""}`}
+            onClick={() => nav("/profile")}
+          >
+            My Result
+          </button>
+        )}
 
         <button className="nav-btn nav-btn-logout" onClick={handleLogout}>
           Logout
