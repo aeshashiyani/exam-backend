@@ -244,7 +244,7 @@ app.get("/results", async (req, res) => {
 const buildPath = path.join(__dirname, "../frontend/build");
 app.use(express.static(buildPath));
 
-app.get("/:any*", (req, res) => {
+app.use((req, res) => {
   res.sendFile(path.join(buildPath, "index.html"));
 });
 
