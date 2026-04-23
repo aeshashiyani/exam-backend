@@ -142,7 +142,6 @@ function Dashboard() {
           <div className="view-switcher">
             <button className={`view-btn ${view === "overview" ? "active" : ""}`} onClick={() => setView("overview")}>Overview</button>
             <button className={`view-btn ${view === "students" ? "active" : ""}`} onClick={() => setView("students")}>Students</button>
-            <button className={`view-btn ${view === "manage-questions" ? "active" : ""}`} onClick={() => setView("manage-questions")}>Add MCQs</button>
           </div>
 
           <div className="content-area">
@@ -186,59 +185,6 @@ function Dashboard() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-              </div>
-            )}
-
-            {view === "manage-questions" && (
-              <div className="question-form-container glass-card">
-                <h2>Update MCQs (Exactly 20)</h2>
-                <div className="subject-selector">
-                  <label>Select Your Allocated Subject: </label>
-                  <select value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} className="answer-select" style={{ width: '250px', display: 'inline-block', marginLeft: '10px' }}>
-                    <option value="">-- Choose Subject --</option>
-                    {allocatedSubjects.map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
-                  </select>
-                </div>
-
-                <div className="questions-list">
-                  {mcqs.map((q, i) => (
-                    <div key={i} className="question-block">
-                      <h4>Question {i + 1}</h4>
-                      <input 
-                        className="question-input" 
-                        placeholder="Enter question text..." 
-                        value={q.question} 
-                        onChange={(e) => handleMcqChange(i, "question", e.target.value)}
-                      />
-                      <div className="options-grid-form">
-                        {q.options.map((opt, j) => (
-                          <input 
-                            key={j} 
-                            className="option-input" 
-                            placeholder={`Option ${j + 1}`} 
-                            value={opt} 
-                            onChange={(e) => handleMcqChange(i, "options", e.target.value, j)}
-                          />
-                        ))}
-                      </div>
-                      <select 
-                        className="answer-select" 
-                        value={q.answer} 
-                        onChange={(e) => handleMcqChange(i, "answer", e.target.value)}
-                      >
-                        <option value="">-- Select Correct Answer --</option>
-                        {q.options.map((opt, j) => opt && <option key={j} value={opt}>{opt}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="form-actions">
-                  {formMsg && <div style={{ marginRight: '20px', padding: '15px', borderRadius: '10px', background: formMsg.includes('✅') ? '#ecfdf5' : '#fef2f2', color: formMsg.includes('✅') ? '#059669' : '#dc2626' }}>{formMsg}</div>}
-                  <button className="btn-confirm" onClick={submitMcqs} disabled={submitting}>
-                    {submitting ? "Uploading..." : "Publish 20 Questions"}
-                  </button>
                 </div>
               </div>
             )}
