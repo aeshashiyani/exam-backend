@@ -10,7 +10,7 @@ function Dashboard() {
   const username = localStorage.getItem("username");
   
   const [view, setView] = useState("overview"); // 'overview', 'students', 'manage-questions'
-  const [facultyData, setFacultyData] = useState({ results: [], students: [], questions: 0 });
+  const [facultyData, setFacultyData] = useState({ results: [], students: [] });
   const [loading, setLoading] = useState(true);
   
   // Faculty MCQ Form State
@@ -44,15 +44,13 @@ function Dashboard() {
 
   const fetchFacultyData = async () => {
     try {
-      const [resResults, resStudents, resQuestions] = await Promise.all([
+      const [resResults, resStudents] = await Promise.all([
         axios.get(`${API_URL}/results`),
-        axios.get(`${API_URL}/students`),
-        axios.get(`${API_URL}/questions`)
+        axios.get(`${API_URL}/students`)
       ]);
       setFacultyData({
         results: resResults.data,
-        students: resStudents.data,
-        questions: resQuestions.data.length
+        students: resStudents.data
       });
     } catch (err) {
       console.error("❌ ERROR: Failed to fetch faculty data", err);
@@ -128,10 +126,6 @@ function Dashboard() {
             <div className="stat-card">
               <h3>Active Students</h3>
               <div className="stat-value">{facultyData.students.length}</div>
-            </div>
-            <div className="stat-card">
-              <h3>Question Bank</h3>
-              <div className="stat-value">{facultyData.questions}</div>
             </div>
             <div className="stat-card">
               <h3>Exams Taken</h3>
