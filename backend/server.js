@@ -178,38 +178,40 @@ app.get("/students", async (req, res) => {
   }
 });
 
-// Get questions for subject
-app.get("/questions", async (req, res) => {
+// Get questions for subject (POST to match frontend)
+app.post("/generate-questions", async (req, res) => {
   try {
-    const subject = req.query.subject;
+    const { subject } = req.body;
     const response = await docClient.send(new ScanCommand({ TableName: TABLES.QUESTIONS }));
-    let questions = response.Items;
+    let questions = response.Items || [];
     
     if (subject) {
-      questions = questions.filter(q => q.subject === subject);
+      questions = questions.filter(q => q.subject.toLowerCase() === subject.toLowerCase());
     }
     res.json(questions);
   } catch (err) {
+    console.error("❌ QUESTIONS ERROR:", err.message);
     res.status(500).json({ error: "Failed to fetch questions" });
   }
 });
 
-// Save result
-app.post("/results", async (req, res) => {
+// Save result (POST /result to match frontend)
+app.post("/result", async (req, res) => {
   try {
     const { username, subject, score, total } = req.body;
     await docClient.send(new PutCommand({
       TableName: TABLES.RESULTS,
       Item: {
-        username,
-        subject,
-        score,
-        total,
+        username: username || "Student",
+        subject: subject || "General",
+        score: score || 0,
+        total: total || 0,
         createdAt: Date.now().toString()
       }
     }));
     res.json({ message: "Result saved to AWS DynamoDB" });
   } catch (err) {
+    console.error("❌ RESULT SAVE ERROR:", err.message);
     res.status(500).json({ error: "Failed to save result" });
   }
 });

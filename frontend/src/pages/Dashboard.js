@@ -173,8 +173,11 @@ function Dashboard() {
                 key={subj.id}
                 className={`subject-card ${localStorage.getItem("selectedSubject") === subj.id ? "active" : ""}`}
                 onClick={() => {
-                  localStorage.setItem("selectedSubject", subj.id);
-                  nav("/exam", { state: { subject: subj.id } });
+                  const ready = window.confirm(`Are you ready to start the ${subj.name} exam? \n\n- 20 Questions\n- 10 Minutes`);
+                  if (ready) {
+                    localStorage.setItem("selectedSubject", subj.id);
+                    nav("/exam", { state: { subject: subj.id } });
+                  }
                 }}
               >
                 <div className="subject-title">{subj.name}</div>
