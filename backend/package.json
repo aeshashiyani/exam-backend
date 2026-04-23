@@ -13,6 +13,8 @@
   "type": "commonjs",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
+    "@aws-sdk/client-dynamodb": "^3.1035.0",
+    "@aws-sdk/lib-dynamodb": "^3.1035.0",
     "axios": "^1.15.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
