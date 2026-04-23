@@ -71,17 +71,8 @@ function Register() {
             />
           </div>
 
-          <div className="form-group">
-            <label>Role</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="role-select"
-            >
-              <option value="student">Student</option>
-              <option value="faculty">Faculty</option>
-            </select>
-          </div>
+          {/* Role is now restricted to student only */}
+          <input type="hidden" value="student" />
 
           {message && (
             <div className={`message ${message.includes("✅") ? "success" : "error"}`}>

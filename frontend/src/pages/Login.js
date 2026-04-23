@@ -31,9 +31,13 @@ function Login() {
       const data = await res.json();
       console.log("Response data:", data);
       if (res.ok) {
+        localStorage.clear(); // Wipe stale data
         localStorage.setItem("token", data.token);
         localStorage.setItem("role", data.role);
         localStorage.setItem("username", data.username);
+        if (data.subjects) {
+          localStorage.setItem("subjects", JSON.stringify(data.subjects));
+        }
         nav("/dashboard");
       } else {
         setMessage(data.error || "Login failed");

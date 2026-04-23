@@ -7,20 +7,40 @@ import "./Dashboard.css";
 function Dashboard() {
   const nav = useNavigate();
   const role = localStorage.getItem("role") || "student";
-  const [view, setView] = useState("overview"); // 'overview' or 'students'
+  const username = localStorage.getItem("username");
+  
+  const [view, setView] = useState("overview"); // 'overview', 'students', 'manage-questions'
   const [facultyData, setFacultyData] = useState({ results: [], students: [], questions: 0 });
   const [loading, setLoading] = useState(true);
+  
+  // Faculty MCQ Form State
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [mcqs, setMcqs] = useState(Array(20).fill({ question: "", options: ["", "", "", ""], answer: "" }));
+  const [formMsg, setFormMsg] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Student Start Exam State
+  const [examConfirm, setExamConfirm] = useState(null); // stores subject object
+
+  const [allocatedSubjects, setAllocatedSubjects] = useState([]);
 
   const API_URL = process.env.REACT_APP_API_URL || "";
 
   useEffect(() => {
-    console.log("🛠️ Dashboard initialized for role:", role);
     if (role === "faculty") {
       fetchFacultyData();
+      const stored = localStorage.getItem("subjects");
+      if (stored) {
+        try {
+          setAllocatedSubjects(JSON.parse(stored));
+        } catch (e) {
+          console.error("Failed to parse subjects", e);
+        }
+      }
     } else {
       setLoading(false);
     }
-  }, [role]);
+  }, [role, view]); // Re-run when view changes to ensure fresh state
 
   const fetchFacultyData = async () => {
     try {
@@ -48,6 +68,43 @@ function Dashboard() {
     { id: "nlp", name: "Natural Language Processing", description: "Text & Language" },
     { id: "machine learning", name: "Machine Learning", description: "AI & Algorithms" }
   ];
+
+  const handleMcqChange = (index, field, value, optIndex = null) => {
+    const newMcqs = [...mcqs];
+    if (field === "options") {
+      const newOpts = [...newMcqs[index].options];
+      newOpts[optIndex] = value;
+      newMcqs[index] = { ...newMcqs[index], options: newOpts };
+    } else {
+      newMcqs[index] = { ...newMcqs[index], [field]: value };
+    }
+    setMcqs(newMcqs);
+  };
+
+  const submitMcqs = async () => {
+    if (!selectedSubject) return setFormMsg("❌ Please select a subject");
+    
+    // Validate all fields
+    const isInvalid = mcqs.some(q => !q.question || q.options.some(o => !o) || !q.answer);
+    if (isInvalid) return setFormMsg("❌ Please fill all 20 questions and options");
+
+    setSubmitting(true);
+    try {
+      await axios.post(`${API_URL}/add-questions`, {
+        username,
+        subject: selectedSubject,
+        questions: mcqs
+      });
+      setFormMsg("✅ Successfully updated 20 questions!");
+      fetchFacultyData();
+      // Reset form msg after some time
+      setTimeout(() => setFormMsg(""), 5000);
+    } catch (err) {
+      setFormMsg("❌ Failed to update: " + (err.response?.data?.error || err.message));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) return (
     <div className="loading-screen">
@@ -82,43 +139,26 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Senior Dev Tabs */}
           <div className="view-switcher">
-            <button 
-              className={`view-btn ${view === "overview" ? "active" : ""}`}
-              onClick={() => setView("overview")}
-            >
-              Performance Overview
-            </button>
-            <button 
-              className={`view-btn ${view === "students" ? "active" : ""}`}
-              onClick={() => setView("students")}
-            >
-              Student Registry
-            </button>
+            <button className={`view-btn ${view === "overview" ? "active" : ""}`} onClick={() => setView("overview")}>Overview</button>
+            <button className={`view-btn ${view === "students" ? "active" : ""}`} onClick={() => setView("students")}>Students</button>
+            <button className={`view-btn ${view === "manage-questions" ? "active" : ""}`} onClick={() => setView("manage-questions")}>Add MCQs</button>
           </div>
 
           <div className="content-area">
-            {view === "overview" ? (
+            {view === "overview" && (
               <div className="results-section glass-card">
                 <h2>Recent Exam Results</h2>
                 <div className="results-table-container">
                   <table className="results-table">
-                    <thead>
-                      <tr>
-                        <th>Student Name</th>
-                        <th>Subject</th>
-                        <th>Score</th>
-                        <th>Date Completed</th>
-                      </tr>
-                    </thead>
+                    <thead><tr><th>Student</th><th>Subject</th><th>Score</th><th>Date</th></tr></thead>
                     <tbody>
                       {facultyData.results.map((res, i) => (
                         <tr key={i}>
                           <td><strong>{res.username}</strong></td>
                           <td><span className="badge">{res.subject.toUpperCase()}</span></td>
                           <td className="score-cell">{res.score} / {res.total}</td>
-                          <td>{new Date(res.createdAt).toLocaleDateString()}</td>
+                          <td>{res.createdAt ? new Date(parseInt(res.createdAt)).toLocaleDateString() : 'N/A'}</td>
                         </tr>
                       ))}
                       {facultyData.results.length === 0 && (
@@ -128,33 +168,77 @@ function Dashboard() {
                   </table>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {view === "students" && (
               <div className="results-section glass-card">
-                <h2>Registered Student List</h2>
+                <h2>Student Registry</h2>
                 <div className="results-table-container">
                   <table className="results-table">
-                    <thead>
-                      <tr>
-                        <th>Username</th>
-                        <th>Account Created</th>
-                        <th>Total Exams Taken</th>
-                      </tr>
-                    </thead>
+                    <thead><tr><th>Username</th><th>Created</th><th>Exams</th></tr></thead>
                     <tbody>
                       {facultyData.students.map((stu, i) => (
                         <tr key={i}>
                           <td><strong>{stu.username}</strong></td>
                           <td>{new Date(stu.createdAt).toLocaleDateString()}</td>
-                          <td>
-                            {facultyData.results.filter(r => r.username === stu.username).length} Exams
-                          </td>
+                          <td>{facultyData.results.filter(r => r.username === stu.username).length} Taken</td>
                         </tr>
                       ))}
-                      {facultyData.students.length === 0 && (
-                        <tr><td colSpan="3" className="empty-msg">No students registered yet.</td></tr>
-                      )}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {view === "manage-questions" && (
+              <div className="question-form-container glass-card">
+                <h2>Update MCQs (Exactly 20)</h2>
+                <div className="subject-selector">
+                  <label>Select Your Allocated Subject: </label>
+                  <select value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} className="answer-select" style={{ width: '250px', display: 'inline-block', marginLeft: '10px' }}>
+                    <option value="">-- Choose Subject --</option>
+                    {allocatedSubjects.map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
+                  </select>
+                </div>
+
+                <div className="questions-list">
+                  {mcqs.map((q, i) => (
+                    <div key={i} className="question-block">
+                      <h4>Question {i + 1}</h4>
+                      <input 
+                        className="question-input" 
+                        placeholder="Enter question text..." 
+                        value={q.question} 
+                        onChange={(e) => handleMcqChange(i, "question", e.target.value)}
+                      />
+                      <div className="options-grid-form">
+                        {q.options.map((opt, j) => (
+                          <input 
+                            key={j} 
+                            className="option-input" 
+                            placeholder={`Option ${j + 1}`} 
+                            value={opt} 
+                            onChange={(e) => handleMcqChange(i, "options", e.target.value, j)}
+                          />
+                        ))}
+                      </div>
+                      <select 
+                        className="answer-select" 
+                        value={q.answer} 
+                        onChange={(e) => handleMcqChange(i, "answer", e.target.value)}
+                      >
+                        <option value="">-- Select Correct Answer --</option>
+                        {q.options.map((opt, j) => opt && <option key={j} value={opt}>{opt}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="form-actions">
+                  {formMsg && <div style={{ marginRight: '20px', padding: '15px', borderRadius: '10px', background: formMsg.includes('✅') ? '#ecfdf5' : '#fef2f2', color: formMsg.includes('✅') ? '#059669' : '#dc2626' }}>{formMsg}</div>}
+                  <button className="btn-confirm" onClick={submitMcqs} disabled={submitting}>
+                    {submitting ? "Uploading..." : "Publish 20 Questions"}
+                  </button>
                 </div>
               </div>
             )}
@@ -172,13 +256,7 @@ function Dashboard() {
               <div
                 key={subj.id}
                 className={`subject-card ${localStorage.getItem("selectedSubject") === subj.id ? "active" : ""}`}
-                onClick={() => {
-                  const ready = window.confirm(`Are you ready to start the ${subj.name} exam? \n\n- 20 Questions\n- 10 Minutes`);
-                  if (ready) {
-                    localStorage.setItem("selectedSubject", subj.id);
-                    nav("/exam", { state: { subject: subj.id } });
-                  }
-                }}
+                onClick={() => setExamConfirm(subj)}
               >
                 <div className="subject-title">{subj.name}</div>
                 <div className="subject-description">{subj.description}</div>
@@ -189,6 +267,27 @@ function Dashboard() {
               </div>
             ))}
           </div>
+
+          {examConfirm && (
+            <div className="start-exam-overlay">
+              <div className="start-exam-card">
+                <h2>{examConfirm.name} Exam</h2>
+                <p>Are you ready to begin your assessment? Please review the details below:</p>
+                <div className="exam-info-box">
+                  <div className="exam-info-item"><span>Total Questions:</span> <span>20</span></div>
+                  <div className="exam-info-item"><span>Time Limit:</span> <span>10 Minutes</span></div>
+                  <div className="exam-info-item"><span>Passing Score:</span> <span>50%</span></div>
+                </div>
+                <div className="overlay-actions">
+                  <button className="btn-cancel" onClick={() => setExamConfirm(null)}>Cancel</button>
+                  <button className="btn-confirm" onClick={() => {
+                    localStorage.setItem("selectedSubject", examConfirm.id);
+                    nav("/exam", { state: { subject: examConfirm.id } });
+                  }}>Start Exam</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
