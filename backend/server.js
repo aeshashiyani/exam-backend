@@ -241,7 +241,7 @@ app.get("/results", async (req, res) => {
 /* =========================
    🌐 STATIC FILES & ROUTING
 ========================= */
-const buildPath = path.join(__dirname, "../frontend/build");
+const buildPath = path.join(__dirname, "public");
 app.use(express.static(buildPath));
 
 app.use((req, res) => {
