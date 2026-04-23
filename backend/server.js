@@ -17,25 +17,18 @@ const {
   QueryCommand 
 } = require("@aws-sdk/lib-dynamodb");
 
-// Fix for querySrv ECONNREFUSED on some networks (not needed for DynamoDB but kept for safety)
+// Fix for querySrv ECONNREFUSED
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Logging middleware
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`);
-  next();
-});
-
 /* =========================
    📦 AWS DYNAMODB CONFIG
 ========================= */
 const region = process.env.AWS_REGION || "eu-north-1";
 
-// For local testing, we use credentials. In production (EB), we use IAM Roles.
 const clientConfig = {
   region: region
 };
@@ -58,28 +51,53 @@ const TABLES = {
 };
 
 /* =========================
-   🚀 SEEDING LOGIC
+   🚀 SEEDING LOGIC (Question Bank)
 ========================= */
 const seedQuestions = async () => {
   try {
-    const existing = await docClient.send(new ScanCommand({ TableName: TABLES.QUESTIONS, Limit: 1 }));
-    if (existing.Items && existing.Items.length > 0) {
-      console.log("✅ Questions already exist in DynamoDB");
+    const existing = await docClient.send(new ScanCommand({ TableName: TABLES.QUESTIONS, Limit: 10 }));
+    if (existing.Items && existing.Items.length >= 10) {
+      console.log("✅ Question Bank is already full in DynamoDB");
       return;
     }
 
-    const sampleQuestions = [
+    const questionBank = [
+      // iOS Development
       { id: "ios-1", question: "Which language is primarily used for iOS development?", options: ["Swift", "Java", "C#", "Kotlin"], answer: "Swift", subject: "ios" },
       { id: "ios-2", question: "What is the main lifecycle method called when a view controller is about to appear?", options: ["viewDidLoad", "viewWillAppear", "viewDidAppear", "viewWillDisappear"], answer: "viewWillAppear", subject: "ios" },
+      { id: "ios-3", question: "What does ARC stand for in iOS development?", options: ["Automatic Reference Counting", "Advanced Result Code", "Auto Resource Control", "Asset Range Cache"], answer: "Automatic Reference Counting", subject: "ios" },
+      { id: "ios-4", question: "Which framework is used for building user interfaces in a declarative way?", options: ["SwiftUI", "UIKit", "CoreData", "CoreML"], answer: "SwiftUI", subject: "ios" },
+      
+      // Flutter Development
       { id: "flutter-1", question: "Which language is used to write Flutter apps?", options: ["Dart", "Java", "Swift", "Kotlin"], answer: "Dart", subject: "flutter" },
-      { id: "cloud-1", question: "What does AWS stand for?", options: ["Amazon Web Services", "Alpha Web Solution", "Amazon Web Store", "All Web Service"], answer: "Amazon Web Services", subject: "cloud computing" }
-      // Add more as needed
+      { id: "flutter-2", question: "What is the primary architectural component in Flutter?", options: ["Widget", "Fragment", "ViewController", "Activity"], answer: "Widget", subject: "flutter" },
+      { id: "flutter-3", question: "Which command is used to check for errors in a Flutter project?", options: ["flutter doctor", "flutter run", "flutter clean", "flutter build"], answer: "flutter doctor", subject: "flutter" },
+      { id: "flutter-4", question: "What type of engine does Flutter use for rendering?", options: ["Skia", "WebKit", "Gecko", "Blink"], answer: "Skia", subject: "flutter" },
+      
+      // Cloud Computing
+      { id: "cloud-1", question: "What does AWS stand for?", options: ["Amazon Web Services", "Alpha Web Solution", "Amazon Web Store", "All Web Service"], answer: "Amazon Web Services", subject: "cloud computing" },
+      { id: "cloud-2", question: "Which AWS service is used for scalable object storage?", options: ["S3", "EC2", "RDS", "Lambda"], answer: "S3", subject: "cloud computing" },
+      { id: "cloud-3", question: "What is the serverless compute service in AWS called?", options: ["Lambda", "Fargate", "Elastic Beanstalk", "CloudFront"], answer: "Lambda", subject: "cloud computing" },
+      { id: "cloud-4", question: "Which AWS service provides a managed NoSQL database?", options: ["DynamoDB", "Redshift", "Aurora", "ElastiCache"], answer: "DynamoDB", subject: "cloud computing" },
+      
+      // Machine Learning
+      { id: "ml-1", question: "Which algorithm is commonly used for classification tasks?", options: ["Random Forest", "K-Means", "PCA", "Linear Regression"], answer: "Random Forest", subject: "machine learning" },
+      { id: "ml-2", question: "What is the process of scaling data to have a mean of 0 and standard deviation of 1?", options: ["Standardization", "Normalization", "Vectorization", "Regularization"], answer: "Standardization", subject: "machine learning" },
+      { id: "ml-3", question: "Which library is most popular for Deep Learning in Python?", options: ["TensorFlow", "Pandas", "Matplotlib", "Seaborn"], answer: "TensorFlow", subject: "machine learning" },
+      
+      // NLP
+      { id: "nlp-1", question: "What does NLP stand for?", options: ["Natural Language Processing", "Node Language Protocol", "Network Layer Process", "Native Logic Programming"], answer: "Natural Language Processing", subject: "nlp" },
+      { id: "nlp-2", question: "Which process involves reducing a word to its base form?", options: ["Lemmatization", "Tokenization", "Encoding", "Parsing"], answer: "Lemmatization", subject: "nlp" }
     ];
 
-    for (const q of sampleQuestions) {
-      await docClient.send(new PutCommand({ TableName: TABLES.QUESTIONS, Item: { ...q, createdAt: Date.now() } }));
+    console.log("📡 Hydrating DynamoDB with Question Bank...");
+    for (const q of questionBank) {
+      await docClient.send(new PutCommand({ 
+        TableName: TABLES.QUESTIONS, 
+        Item: { ...q, createdAt: Date.now() } 
+      }));
     }
-    console.log("📊 Successfully seeded Questions to DynamoDB");
+    console.log("📊 Successfully seeded all questions to AWS DynamoDB");
   } catch (err) {
     console.error("❌ SEED ERROR:", err.message);
   }
@@ -91,71 +109,48 @@ seedQuestions();
    🔐 AUTH ROUTES
 ========================= */
 
-// Register
 app.post("/register", async (req, res) => {
   try {
     const { username, password, role } = req.body;
-    if (!username || !password || !role) {
-      return res.status(400).json({ error: "All fields required" });
-    }
+    if (!username || !password || !role) return res.status(400).json({ error: "All fields required" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const tableName = role === 'student' ? TABLES.STUDENTS : TABLES.FACULTIES;
 
-    // Check if user exists
     const existing = await docClient.send(new GetCommand({ TableName: tableName, Key: { username } }));
-    if (existing.Item) {
-      return res.status(400).json({ error: "Username already exists" });
-    }
+    if (existing.Item) return res.status(400).json({ error: "Username already exists" });
 
     await docClient.send(new PutCommand({
       TableName: tableName,
-      Item: {
-        username,
-        password: hashedPassword,
-        role,
-        createdAt: Date.now()
-      }
+      Item: { username, password: hashedPassword, role, createdAt: Date.now() }
     }));
 
     res.json({ message: "User registered successfully" });
   } catch (err) {
-    console.log("❌ REGISTER ERROR:", err.message);
     res.status(500).json({ error: "Registration failed" });
   }
 });
 
-// Login
 app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
     
-    // Check Students first
     let response = await docClient.send(new GetCommand({ TableName: TABLES.STUDENTS, Key: { username } }));
     let user = response.Item;
 
     if (!user) {
-      // Check Faculties
       response = await docClient.send(new GetCommand({ TableName: TABLES.FACULTIES, Key: { username } }));
       user = response.Item;
     }
 
-    if (!user) {
-      return res.status(401).json({ error: "User not found" });
-    }
+    if (!user) return res.status(401).json({ error: "User not found" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ error: "Invalid password" });
-    }
+    if (!isMatch) return res.status(401).json({ error: "Invalid password" });
 
-    const token = jwt.sign(
-      { username: user.username, role: user.role }, 
-      process.env.JWT_SECRET || 'secret'
-    );
+    const token = jwt.sign({ username: user.username, role: user.role }, process.env.JWT_SECRET || 'secret');
     res.json({ token, role: user.role, username: user.username });
   } catch (err) {
-    console.log("❌ LOGIN ERROR:", err.message);
     res.status(500).json({ error: "Login failed" });
   }
 });
@@ -164,21 +159,15 @@ app.post("/login", async (req, res) => {
    📊 DATA ROUTES
 ========================= */
 
-// Get all students
 app.get("/students", async (req, res) => {
   try {
     const response = await docClient.send(new ScanCommand({ TableName: TABLES.STUDENTS }));
-    const students = response.Items.map(s => {
-      const { password, ...rest } = s;
-      return rest;
-    });
-    res.json(students);
+    res.json(response.Items.map(({ password, ...rest }) => rest));
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch students" });
   }
 });
 
-// Get questions for subject (POST to match frontend)
 app.post("/generate-questions", async (req, res) => {
   try {
     const { subject } = req.body;
@@ -190,12 +179,10 @@ app.post("/generate-questions", async (req, res) => {
     }
     res.json(questions);
   } catch (err) {
-    console.error("❌ QUESTIONS ERROR:", err.message);
     res.status(500).json({ error: "Failed to fetch questions" });
   }
 });
 
-// Save result (POST /result to match frontend)
 app.post("/result", async (req, res) => {
   try {
     const { username, subject, score, total } = req.body;
@@ -211,26 +198,22 @@ app.post("/result", async (req, res) => {
     }));
     res.json({ message: "Result saved to AWS DynamoDB" });
   } catch (err) {
-    console.error("❌ RESULT SAVE ERROR:", err.message);
     res.status(500).json({ error: "Failed to save result" });
   }
 });
 
-// Get results
 app.get("/results", async (req, res) => {
   try {
     const username = req.query.username;
     let response;
     
     if (username) {
-      // Query by username (Partition Key)
       response = await docClient.send(new QueryCommand({
         TableName: TABLES.RESULTS,
         KeyConditionExpression: "username = :u",
         ExpressionAttributeValues: { ":u": username }
       }));
     } else {
-      // Scan all (Faculty view)
       response = await docClient.send(new ScanCommand({ TableName: TABLES.RESULTS }));
     }
     
